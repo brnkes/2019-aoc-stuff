@@ -1,0 +1,7 @@
+.idea
+
+#js
+**/node_modules/*
+
+#rs
+**/Cargo.lock
