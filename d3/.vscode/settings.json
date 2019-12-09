@@ -1,0 +1,10 @@
+{
+    "purescript.addSpagoSources": true,
+    "purescript.addNpmPath": true,
+    "purescript.buildCommand": "yarn spago -x test.dhall build --purs-args --json-errors",
+    "purescript.pursExe": "purs",
+
+    "files.associations": {
+        "*.purs.spec" : "purescript"
+    }
+}
