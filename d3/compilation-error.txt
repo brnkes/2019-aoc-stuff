@@ -1,0 +1,31 @@
+Error found:
+in module Solution
+at src/Solution.purs:155:31 - 155:34 (line 155, column 31 - line 155, column 34)
+
+  Could not match type
+
+    ( x :: Int
+    , y :: Int
+    )
+
+  with type
+
+    { x :: Int
+    , y :: Int
+    }
+
+
+while trying to match type ( x :: Int
+                           , y :: Int
+                           )
+  with type { x :: Int
+            , y :: Int
+            }
+while checking that expression pos
+  has type t0
+             { x :: Int
+             , y :: Int
+             }
+in value declaration solution
+
+where t0 is an unknown type

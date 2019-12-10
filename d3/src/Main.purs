@@ -15,16 +15,11 @@ import Node.Encoding (Encoding(..))
 import Node.FS.Sync (readTextFile)
 
 extract :: forall a. Array (Maybe a) -> Maybe (Array a)
-extract arr = if sameLength then Just extracted else Nothing
+extract arr = extracted
   where
-    ls = Ls.fromFoldable arr
-
-    extractGo Nil = Nil
-    extractGo ((Nothing):_) = Nil
-    extractGo ((Just x):next) = x:(extractGo next)
-    extracted = extractGo >>> Arr.fromFoldable $ ls
-
-    sameLength = Arr.length arr == Arr.length extracted 
+    extractGo Nil = Nothing
+    extractGo (x:next) = Cons <$> x <*> (extractGo next)
+    extracted = extractGo >>> map Arr.fromFoldable $ Ls.fromFoldable arr
 
 processInput :: String -> Maybe (Array (Array WireMovement))
 processInput = 

@@ -24,5 +24,5 @@ spec = do
         expectation = { xMax: 100, xMin: -300, yMax: 450, yMin: -100 }
       (gatherSpaceInfo input) `shouldEqual` expectation  
 
-  describe "solution" do
+  -- describe "solution" do
       
