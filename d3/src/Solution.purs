@@ -151,9 +151,9 @@ solution input = do
 
       where
         mutateClosestPosReference =
-          (\closestCurrent -> 
-            returnClosest <$> pos <*> closestCurrent
-            -- <|> Just pos
+          (\closestCurrent -> case closestCurrent of
+            Just c -> Just $ returnClosest pos c
+            Nothing -> Just pos
           )
 
         returnClosest :: Position -> Position -> Position
