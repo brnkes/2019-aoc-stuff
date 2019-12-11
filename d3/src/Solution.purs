@@ -3,22 +3,29 @@ module Solution where
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.ArrayBuffer.Typed (Index, at, empty, fill, length, unsafeAt)
+import Data.ArrayBuffer.DataView (setUint8)
+import Data.ArrayBuffer.Typed (Index, at, empty, fill, length, reduce, traverseWithIndex, traverseWithIndex_, unsafeAt, buffer)
 import Data.ArrayBuffer.Types (ArrayView, Uint8)
 import Data.Enum (enumFromTo)
 import Data.Foldable (foldM, foldl, traverse_)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Int (fromString) as I
+import Data.Int (rem)
 import Data.List.Lazy (List(..))
 import Data.Maybe (Maybe(..))
+import Data.Ord (abs)
+import Data.Sequence (Seq, empty, snoc, toUnfoldable) as Seq
 import Data.String (splitAt)
 import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..), fst, snd)
+import Data.Typelevel.Bool (and)
 import Data.Typelevel.Num (lt)
 import Data.UInt (UInt, fromInt)
 import Effect (Effect)
+import Effect.Class.Console (log)
 import Effect.Ref (Ref)
-import Effect.Ref (new, modify) as Ref
+import Effect.Ref (modify, new, read) as Ref
 import Partial.Unsafe (unsafePartial)
 
 type Amount = Int
@@ -94,78 +101,153 @@ type Dimension = Position
 type WireSpace = { repr :: (ArrayView Uint8), offset :: Offset, dims :: Dimension }
 type BlitAccumulator = {space :: WireSpace, pos :: Position }
 
-translatePos :: WireSpace -> Position -> Int
-translatePos {offset:{x:xOffset, y:yOffset}, dims:{x:xDim}} {x:xPos, y:yPos} = 
+debugWireSpace :: WireSpace -> Effect Unit
+debugWireSpace {repr, dims} = do
+  --log "===========>"
+  let blank = Seq.empty :: Seq.Seq UInt
+
+  _ <- reduce (\acc val idx -> do
+    let accNew = Seq.snoc acc val
+    if ((idx+1) `mod` dims.x) == 0 
+      then do
+        --log (foldl (\buf next -> buf <> " " <> (if next > (fromInt 0) then "X" else "0")) "" accNew)
+        pure blank
+      else pure $ accNew
+  ) blank repr
+
+  --log "<==========="
+  pure unit
+
+translatePosToMemoryLocation :: WireSpace -> Position -> Int
+translatePosToMemoryLocation {offset:{x:xOffset, y:yOffset}, dims:{x:xDim}} {x:xPos, y:yPos} = 
   (xPos + xOffset) + ((yPos + yOffset) * xDim)
+
+translateMemoryLocationToPos :: WireSpace -> Int -> Position
+translateMemoryLocationToPos {offset:{x:xOffset, y:yOffset}, dims:{x:xDim}} memoryPos = 
+  let
+    xPos = (memoryPos `rem` xDim) - xOffset
+    yPos = ((memoryPos - xPos) `div` xDim) - yOffset
+  in
+    { x:xPos, y:yPos }
 
 type ReportMinDistance = Position -> Effect Unit 
 
-applyWireMovement :: WireSpace -> ReportMinDistance -> Position -> WireMovement -> Effect Position
-applyWireMovement space report pos (WireMovement direction amount) = do
+applyWireMovement :: WireSpace -> Position -> WireMovement -> Effect Position
+applyWireMovement space pos (WireMovement direction amount) = do
   let
-    walk acc _ = do
+    walk locCurrent _ = do
       let
-        {x:pX,y:pY} = acc
-        locUntranslated = case direction of
+        {x:pX,y:pY} = locCurrent
+        locNewUntranslated = case direction of
           D -> pos{ y = pY - 1 }
           U -> pos{ y = pY + 1 }
           L -> pos{ x = pX - 1 }
           R -> pos{ x = pX + 1 }
-        locInMemory = translatePos space locUntranslated
+        locInMemory = translatePosToMemoryLocation space locNewUntranslated
 
-      currentCount <- unsafePartial (unsafeAt space.repr (locInMemory))
+      --log $ "Writing to " <> (show locNewUntranslated)
+      -- buf <- buffer space.repr 
+      -- setUint8 buf locInMemory (fromInt 1)
+      fill (fromInt 1) (locInMemory) (locInMemory+1) space.repr
+      -- debugWireSpace space
+      pure locNewUntranslated
 
-      let newCountValue = (currentCount + (fromInt 1))
-      if newCountValue > (fromInt 1) then report(locUntranslated) else pure unit
+  foldM walk pos (enumFromTo 1 amount :: List Int)
 
-      fill newCountValue (locInMemory) (locInMemory+1) space.repr
-      pure locUntranslated
+blitForWireMovement :: Space -> Array WireMovement -> Effect WireSpace
+blitForWireMovement spaceInfo movements = do
+  spaceMem <- createMemoryForSpace spaceInfo
 
-  foldM walk pos (enumFromTo 0 amount :: List Int)
+  log ("Space create")
 
-blitForWireMovement :: WireSpace -> ReportMinDistance -> Array WireMovement -> Effect Unit
-blitForWireMovement wireSpace report movements = do
-  foldM (applyWireMovement wireSpace report) { x:0, y:0 } movements
-  $> unit
+  --log $ "off" <> (show spaceMem.offset)
+  --log $ "dim" <> (show spaceMem.dims)
+
+  _ <- foldM (applyWireMovement spaceMem) { x:0, y:0 } movements
+  pure spaceMem
+
+aggregateSpaces :: ReportMinDistance -> Space -> Array WireSpace -> Effect WireSpace
+aggregateSpaces report spaceInfo spaces = do
+  target <- createMemoryForSpace spaceInfo
+
+  log ("Create blank target")
+
+  let
+    applyToTarget :: Int → UInt → Effect Unit
+    applyToTarget idx val = do
+      currentCount <- unsafePartial (unsafeAt target.repr (idx))
+
+      let
+        newCountValue = (currentCount + val)
+        locUntranslated = translateMemoryLocationToPos target idx
+
+        shouldReport = 
+          (newCountValue > (fromInt 1)) &&
+          (locUntranslated /= {x:0, y:0})
+
+      fill newCountValue (idx) (idx+1) target.repr
+
+      --log ("!!!")
+      --log (show locUntranslated)
+      --log (show currentCount <> " <- " <> show val <> " = " <> show newCountValue <> " ±±± " <> (show $ shouldReport))
+      if shouldReport then log (">>>" <> (show locUntranslated)) else pure unit
+      if shouldReport then log (show newCountValue) else pure unit
+      if shouldReport then report locUntranslated else pure unit
+
+  _ <- traverse (\singleSpace ->
+    --log ("Next one......")
+    traverseWithIndex_ applyToTarget singleSpace.repr
+  ) spaces
+  
+  pure target
 
 createMemoryForSpace :: Space -> Effect WireSpace
 createMemoryForSpace space = do
   let 
-    dimX = (space.xMax - space.xMin)
-    dimY = (space.yMax - space.yMin)
+    dimX = (space.xMax - space.xMin) + 1
+    dimY = (space.yMax - space.yMin) + 1
   mem <- empty $ dimX * dimY 
   fill (fromInt 0) 0 (length mem) mem
   pure $ { repr:mem, offset:{ x:(negate space.xMin), y:(negate space.yMin) }, dims: {x:dimX, y:dimY} }
 
-solution :: Array (Array WireMovement) -> Effect Int
+distanceManhattan :: Position -> Position -> UInt
+distanceManhattan a b = fromInt $ abs (a.x - b.x) + abs (a.y - b.y)
+
+distanceManhattanToOrigin :: Position -> UInt
+distanceManhattanToOrigin = (flip distanceManhattan) { x:0, y:0 }
+
+genReport :: Ref (Maybe Position) -> ReportMinDistance
+genReport closestPositionMutRef pos = do
+  Ref.modify mutateClosestPosReference closestPositionMutRef
+  $> unit
+
+  where
+    mutateClosestPosReference =
+      (\closestCurrent -> case closestCurrent of
+        Just c -> Just $ returnClosest pos c
+        Nothing -> Just pos
+      )
+
+    returnClosest :: Position -> Position -> Position
+    returnClosest = (\new old -> 
+      if distanceManhattanToOrigin new < distanceManhattanToOrigin old then new else old
+    )
+
+solution :: Array (Array WireMovement) -> Effect (Maybe UInt)
 solution input = do
-  let spaceInfo = gatherSpaceInfo input  
-  spaceMem <- createMemoryForSpace spaceInfo
+  let spaceInfo = gatherSpaceInfo input
 
   closestPositionMutRef <- (Ref.new Nothing) 
-  let 
-    report :: ReportMinDistance
-    report pos = do
-      Ref.modify mutateClosestPosReference closestPositionMutRef
-      $> unit
+  wireSpaces <- traverse (blitForWireMovement spaceInfo) input
 
-      where
-        mutateClosestPosReference =
-          (\closestCurrent -> case closestCurrent of
-            Just c -> Just $ returnClosest pos c
-            Nothing -> Just pos
-          )
+  log ("Blitted...")
 
-        returnClosest :: Position -> Position -> Position
-        returnClosest = (\new old -> 
-          if distanceManhattanToOrigin new < distanceManhattanToOrigin old then new else old
-        )
+  -- traverse_ debugWireSpace wireSpaces
 
-        distanceManhattan :: Position -> Position -> UInt
-        distanceManhattan a b = fromInt $ a.x - b.x + a.y - b.y
+  _ <- aggregateSpaces (genReport closestPositionMutRef) spaceInfo wireSpaces
 
-        distanceManhattanToOrigin = (flip distanceManhattan) { x:0, y:0 }
+  latestPos <- Ref.read closestPositionMutRef
 
-  traverse (blitForWireMovement spaceMem report) input
-  $> 1
-  
+  --log (show latestPos)
+
+  pure $ distanceManhattanToOrigin <$> latestPos  
