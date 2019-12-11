@@ -52,16 +52,19 @@ spec = do
     it "works properly" $ liftEffect do
       mem <- liftEffect $ createMemoryForSpace spaceSample
 
-      pos <- applyWireMovement mem ({ x:0, y:0 }) (WireMovement U 3)
-      pos `shouldEqual` { x:0, y:3 }
+      r <- applyWireMovement mem {pos:{ x:0, y:0 }, steps:(fromInt 0)} (WireMovement U 3)
+      r.pos `shouldEqual` { x:0, y:3 }
+      r.steps `shouldEqual` (fromInt 3)
       debugWireSpace mem
 
-      pos2 <- applyWireMovement mem pos (WireMovement R 3)
-      pos2 `shouldEqual` { x:3, y:3 }
+      r2 <- applyWireMovement mem r (WireMovement R 3)
+      r2.pos `shouldEqual` { x:3, y:3 }
+      r2.steps `shouldEqual` (fromInt 6)
       debugWireSpace mem
 
-      pos3 <- applyWireMovement mem pos2 (WireMovement D 2)
-      pos3 `shouldEqual` { x:3, y:1 }
+      r3 <- applyWireMovement mem r2 (WireMovement D 2)
+      r3.pos `shouldEqual` { x:3, y:1 }
+      r3.steps `shouldEqual` (fromInt 8)
       debugWireSpace mem
 
   describe "translatePosToMemoryLocation & translateMemoryLocationToPos" do
@@ -94,27 +97,6 @@ spec = do
         (zip (map backAndForth samples) samples)
 
       pure unit
-
-  describe "genReport" do
-    it "works properly" $ liftEffect do
-      ref <- (Ref.new Nothing) 
-
-      let reportWithRef = genReport ref
-
-      reportWithRef { x:10, y:10 }
-      Ref.read ref >>= shouldEqual (Just { x:10, y:10 })
-
-      reportWithRef { x:15, y:10 }
-      Ref.read ref >>= shouldEqual (Just { x:10, y:10 })
-
-      reportWithRef { x:15, y:15 }
-      Ref.read ref >>= shouldEqual (Just { x:10, y:10 })
-
-      reportWithRef { x:9, y:10 }
-      Ref.read ref >>= shouldEqual (Just { x:9, y:10 })
-
-      reportWithRef { x:9, y:8 }
-      Ref.read ref >>= shouldEqual (Just { x:9, y:8 })
 
   describe "solution" do
     it "yields Nothing if #(lines) = 1" do
@@ -158,4 +140,4 @@ spec = do
 
       result <- liftEffect $ solution input
 
-      result `shouldEqual` (Just $ fromInt 2)      
+      result `shouldEqual` (Just $ fromInt 6)      
