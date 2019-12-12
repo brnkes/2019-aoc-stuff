@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use std::collections::VecDeque;
 
 mod interpreter;
 
@@ -14,20 +15,19 @@ fn main() -> () {
         .map(|code_txt| code_txt.parse::<i64>().unwrap())
         .collect();
 
-//    q1(&mut codes);
-//    print!("{}", codes[0]);
+    println!("{:?}", &codes);
 
-    print!("{}",q2(&codes).unwrap());
+    q1(&mut codes);
 }
 
 fn q1(codes: &mut [i64]) {
-    codes[1] = 12;
-    codes[2] = 2;
+    let mut input_queue = VecDeque::new();
+    input_queue.push_front(1);
 
-    // todo : try out custom error wrapper/crate
-    interpreter::traverse(codes).unwrap();
+    interpreter::traverse(codes, &mut input_queue).unwrap()
 }
 
+/*
 fn q2(codes: &[i64]) -> Option<i64> {
     for noun in 0..99 {
         for verb in 0..99 {
@@ -43,4 +43,4 @@ fn q2(codes: &[i64]) -> Option<i64> {
     }
 
     None
-}
+}*/
