@@ -17,7 +17,8 @@ fn main() -> () {
 
     println!("{:?}", &codes);
 
-    q1(&mut codes);
+//    q1(&mut codes);
+    q2(&mut codes);
 }
 
 fn q1(codes: &mut [i64]) {
@@ -27,20 +28,9 @@ fn q1(codes: &mut [i64]) {
     interpreter::traverse(codes, &mut input_queue).unwrap()
 }
 
-/*
-fn q2(codes: &[i64]) -> Option<i64> {
-    for noun in 0..99 {
-        for verb in 0..99 {
-            let mut copied = codes.to_vec();
-            copied[1] = noun;
-            copied[2] = verb;
-            interpreter::traverse(&mut copied).unwrap();
+fn q2(codes: &mut [i64]) {
+    let mut input_queue = VecDeque::new();
+    input_queue.push_front(5);
 
-            if copied[0] == 19690720 {
-                return Some(100 * noun + verb)
-            }
-        }
-    }
-
-    None
-}*/
+    interpreter::traverse(codes, &mut input_queue).unwrap()
+}

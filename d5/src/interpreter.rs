@@ -7,7 +7,11 @@ enum Op {
     Mul,
     End,
     Input,
-    Output
+    Output,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
 }
 
 impl Op {
@@ -18,18 +22,28 @@ impl Op {
             Op::End => 0,
             Op::Input => 1,
             Op::Output => 1,
+            Op::JumpIfTrue => 2,
+            Op::JumpIfFalse => 2,
+            Op::LessThan => 3,
+            Op::Equals => 3,
         }
     }
 
-    fn get_arithmetic_op(&self) -> Option<Box<dyn Fn(i64,i64) -> i64>> {
+    fn get_binary_i64_op(&self) -> Box<dyn Fn(i64,i64) -> i64> {
         match self {
             Op::Sum => {
-                Some(Box::new(|arg1, arg2| arg1 + arg2))
+                (Box::new(|arg1, arg2| arg1 + arg2))
             }
             Op::Mul => {
-                Some(Box::new(|arg1, arg2| arg1 * arg2))
+                (Box::new(|arg1, arg2| arg1 * arg2))
             },
-            _ => None,
+            Op::LessThan => {
+                (Box::new(|arg1, arg2| if arg1 < arg2 { 1 } else { 0 }))
+            }
+            Op::Equals => {
+                (Box::new(|arg1, arg2| if arg1 == arg2 { 1 } else { 0 }))
+            },
+            _ => panic!("Invalid arithmetic op : {:?}", self),
         }
     }
 }
@@ -59,7 +73,7 @@ impl Mode {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
-struct OpcodeAndModecodes {
+struct OpAndModes {
     op_code:Op,
     modes:Vec<Mode>
 }
@@ -70,8 +84,12 @@ fn parse_opcode(op_code:i64) -> Result<Op,String> {
         2 => Ok(Op::Mul),
         3 => Ok(Op::Input),
         4 => Ok(Op::Output),
+        5 => Ok(Op::JumpIfTrue),
+        6 => Ok(Op::JumpIfFalse),
+        7 => Ok(Op::LessThan),
+        8 => Ok(Op::Equals),
         99 => Ok(Op::End),
-        _ => Err(String::from("Wrong opcode"))
+        _ => Err(format!("Wrong opcode : {}", op_code))
     }
 }
 
@@ -79,7 +97,7 @@ fn parse_modecode(mode_code:&i64) -> Result<Mode,String> {
     match *mode_code {
         0 => Ok(Mode::Position),
         1 => Ok(Mode::Immediate),
-        _ => Err(String::from("Wrong mode code"))
+        _ => Err(format!("Wrong modecode : {}", mode_code))
     }
 }
 
@@ -88,27 +106,30 @@ fn parse_modecode(mode_code:&i64) -> Result<Mode,String> {
     Ok(get_op(code)(arg1, arg2))
 }*/
 
+// todo : macro
+
 fn eval(
     program: &mut [i64],
     handle_output: &dyn Fn(i64),
     handle_input: &mut dyn FnMut() -> i64,
     exec_ptr: &mut usize,
-    opcode_and_modecodes: OpcodeAndModecodes,
+    opcode_and_modecodes: OpAndModes,
 ) {
     let param_count = opcode_and_modecodes.op_code.param_count();
     let modes = opcode_and_modecodes.modes;
 
     match opcode_and_modecodes.op_code {
-        Op::Sum | Op::Mul => {
+        Op::Sum | Op::Mul | Op::Equals | Op::LessThan => {
             let arg1 = modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1);
             let arg2 = modes.get(1).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 2);
 
             modes.get(2).unwrap_or(&Mode::Position).write_with(
                 program,
                 *exec_ptr + 3,
-                opcode_and_modecodes.op_code.get_arithmetic_op().unwrap()(arg1, arg2)
+                opcode_and_modecodes.op_code.get_binary_i64_op()(arg1, arg2)
             );
         },
+        // todo : bools
         Op::Input => {
             let incoming_value = handle_input();
             modes.get(0).unwrap_or(&Mode::Position).write_with(
@@ -121,13 +142,25 @@ fn eval(
             let to_output = modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1);
             handle_output(to_output);
         },
+        Op::JumpIfTrue => {
+            if modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1) != 0 {
+                *exec_ptr = modes.get(1).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 2) as usize;
+                return
+            }
+        },
+        Op::JumpIfFalse => {
+            if modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1) == 0 {
+                *exec_ptr = modes.get(1).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 2) as usize;
+                return
+            }
+        },
         Op::End => panic!("Should've been handled outside the eval block."),
     }
 
     *exec_ptr += param_count + 1;
 }
 
-fn extract_op_and_modes(input: i64) -> OpcodeAndModecodes {
+fn extract_op_and_modes(input: i64) -> OpAndModes {
     let op_and_mode = input;
     let op_code = op_and_mode % 100;
     let mut mode = op_and_mode / 100;
@@ -138,7 +171,7 @@ fn extract_op_and_modes(input: i64) -> OpcodeAndModecodes {
         mode = mode / 10;
     }
 
-    OpcodeAndModecodes {
+    OpAndModes {
         op_code: parse_opcode(op_code).unwrap(),
         modes: modes.iter().map(|code| parse_modecode(code).unwrap()).collect()
     }
@@ -180,7 +213,7 @@ mod tests {
     #[test]
     fn test_opcode_extraction() {
         let result = extract_op_and_modes(1002);
-        assert_eq!(result, OpcodeAndModecodes {
+        assert_eq!(result, OpAndModes {
             op_code:Op::Mul,
             modes:vec![Mode::Position,Mode::Immediate]
         })
