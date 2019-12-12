@@ -55,6 +55,6 @@ def generate(current, remaining_digit_count, bounds={}, last_adjacent_digit_grou
 
 def run():
     print(generate(None, 6, {'lower': boundLower, 'upper': boundUpper}))
-
+    
 
 run()
