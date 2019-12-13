@@ -1,13 +1,15 @@
 import R from 'ramda';
 import fs from 'fs';
 
-function run(dims, inputTxt) {
+const splitInput = (windowSize) => R.compose(
+    R.map(R.splitEvery(1)),
+    R.splitEvery(windowSize)
+);
+
+function run_q1(dims, inputTxt) {
     const windowSize = dims.x * dims.y;
 
-    const splat = R.compose(
-        R.map(R.splitEvery(1)),
-        R.splitEvery(windowSize)
-    )(inputTxt);
+    const splat = splitInput(windowSize)(inputTxt);
 
     const leastZeroIdx = R.reduce(([acc,idx,result], next) => {
         const countOfZeroes = R.compose(
@@ -34,9 +36,50 @@ function run(dims, inputTxt) {
     console.log(mul1CountBy2Count);
 }
 
-run({x: 25, y: 6}, fs.readFileSync("./input.txt", 'utf8'));
-// test();
-
-function test() {
-    run({x:3,y:2},"123456789012");
+function test_q1() {
+    run_q1({x:3,y:2},"123456789012");
 }
+
+const dims_question = {x: 25, y: 6};
+const input_question = fs.readFileSync("./input.txt", 'utf8');
+// run_q1(dims_question, input_question);
+// test_q1();
+
+function prettyprint(dims, arr) {
+    R.compose(
+        R.tap((x) => console.log(x)),
+        R.map(R.join("")),
+        R.splitEvery(dims.x),
+        R.map((x) => {
+            switch (x) {
+                case 2 : return " ";
+                case 0 : return " ";
+                case 1 : return "X";
+            }
+        }),
+    )(arr);
+}
+
+function run_q2(dims, inputTxt) {
+    const windowSize = dims.x * dims.y;
+
+    const res = R.compose(
+        R.reduce((acc , nextLayer) =>
+            R.zipWith((current,candidate) =>
+                current !== 2 ? current : candidate
+            , acc, nextLayer),
+            R.repeat(2,windowSize)
+        ),
+        R.map(R.map(parseInt)),
+        splitInput(windowSize)
+    )(inputTxt);
+
+    prettyprint(dims, res);
+}
+
+function test_q2() {
+    run_q2({x:2,y:2}, "0222112222120000");
+}
+
+// test_q2();
+run_q2(dims_question, input_question);
