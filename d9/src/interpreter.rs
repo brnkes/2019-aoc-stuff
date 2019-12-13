@@ -85,14 +85,14 @@ macro_rules! check_and_resize {
     ( $program:expr, $targetted_index:expr ) => {
 //        println!("{} <=> {}", $targetted_index, $program.len());
 
-        if $targetted_index < 0 {
-            panic!("Cannot access negative index.");
-        }
+        #[allow(unused_comparisons)]
+        let is_negative_idx = $targetted_index < 0;
+        assert!(!is_negative_idx, "Cannot access negative index.");
 
-        let idx = $targetted_index as usize;
+        let idx_comp = $targetted_index as usize;
 
-        if idx as usize >= $program.len() {
-            $program.resize(idx + 1, 0);
+        if idx_comp as usize >= $program.len() {
+            $program.resize(idx_comp + 1, 0);
         }
     };
 }
@@ -108,7 +108,7 @@ impl Mode {
         }
     }
 
-    fn read_with(&self, program: &mut Vec<i64>, rel_ptr: usize, idx: usize) -> i64 {
+    fn read_with(&self, program: &mut Vec<i64>, rel_ptr: i64, idx: usize) -> i64 {
         match self {
             Mode::Immediate => {
                 check_and_resize!(program,idx);
@@ -122,32 +122,31 @@ impl Mode {
                 program[program[idx] as usize]
             },
             Mode::Relative => {
-                let idx_final = idx + rel_ptr;
+                check_and_resize!(program,idx);
+                let idx_final = (rel_ptr + program[idx]) as usize;
                 check_and_resize!(program,idx_final);
-                check_and_resize!(program,program[idx_final]);
 
-                program[program[idx_final] as usize]
+                program[idx_final as usize]
             }
         }
     }
 
-    fn write_with(&self, program: &mut Vec<i64>, rel_ptr: usize, idx: usize, value: i64) {
+    fn write_with(&self, program: &mut Vec<i64>, rel_ptr: i64, idx: usize, value: i64) {
         match self {
             Mode::Immediate => panic!("Cannot write in immediate mode."),
             Mode::Position => {
                 check_and_resize!(program,idx);
                 let ptr = program[idx];
-
                 check_and_resize!(program,ptr);
+
                 program[ptr as usize] = value
             },
             Mode::Relative => {
-                let idx_final = idx + rel_ptr;
+                check_and_resize!(program,idx);
+                let idx_final = (rel_ptr + program[idx]) as usize;
                 check_and_resize!(program,idx_final);
-                let ptr = program[idx_final];
 
-                check_and_resize!(program,ptr);
-                program[ptr as usize] = value
+                program[idx_final as usize] = value
             }
         }
     }
@@ -162,24 +161,24 @@ struct OpAndModes {
 
 trait MemShorthand {
     fn read_mem(
-        &self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: usize, exec_ptr: usize
+        &self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: i64, exec_ptr: usize
     ) -> i64;
 
     fn write_mem(
-        &self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: usize, exec_ptr: usize,
+        &self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: i64, exec_ptr: usize,
         value_fun: &dyn Fn() -> i64,
     );
 }
 
 impl MemShorthand for Vec<Mode> {
-    fn read_mem(&self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: usize, exec_ptr: usize) -> i64 {
+    fn read_mem(&self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: i64, exec_ptr: usize) -> i64 {
         self.get(idx).unwrap_or(&Mode::Position).read_with(
             program, rel_base_ptr, exec_ptr + idx + 1,
         )
     }
 
     fn write_mem(
-        &self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: usize, exec_ptr: usize,
+        &self, program: &mut Vec<i64>, idx: usize, rel_base_ptr: i64, exec_ptr: usize,
         value_fun: &dyn Fn() -> i64,
     ) {
         self.get(idx).unwrap_or(&Mode::Position).write_with(
@@ -196,7 +195,7 @@ fn eval(
     handle_output: &mut dyn FnMut(i64),
     handle_input: &mut dyn FnMut() -> Option<i64>,
     exec_ptr: &mut usize,
-    rel_base_ptr: &mut usize,
+    rel_base_ptr: &mut i64,
     opcode_and_modecodes: OpAndModes,
 ) {
     let op_code = opcode_and_modecodes.op_code;
@@ -252,7 +251,7 @@ fn eval(
         }
         Op::End => panic!("Should've been handled outside the eval block."),
         Op::AdjustRelativeBase => {
-            *rel_base_ptr += modes.read_mem(program, 0, *rel_base_ptr, *exec_ptr) as usize;
+            *rel_base_ptr += modes.read_mem(program, 0, *rel_base_ptr, *exec_ptr);
         }
     }
 
@@ -278,7 +277,7 @@ fn extract_op_and_modes(input: i64) -> OpAndModes {
 
 pub struct Interpreter {
     exec_ptr: usize,
-    rel_base_ptr: usize,
+    rel_base_ptr: i64,
     memory: Vec<i64>,
     input_queue: Rc<RefCell<VecDeque<i64>>>,
     output_queue: Rc<RefCell<VecDeque<i64>>>,
@@ -287,7 +286,7 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new(
         exec_ptr: usize,
-        rel_base_ptr: usize,
+        rel_base_ptr: i64,
         memory: Vec<i64>,
         input_queue: Rc<RefCell<VecDeque<i64>>>,
         output_queue: Rc<RefCell<VecDeque<i64>>>,
@@ -302,7 +301,7 @@ impl Interpreter {
     }
 
     pub fn get_last_output(&self) -> i64 {
-        self.output_queue.as_ref().borrow().front().unwrap().clone()
+        self.output_queue.as_ref().borrow().back().unwrap().clone()
     }
 
     pub fn process(&mut self) -> bool {
@@ -331,6 +330,7 @@ impl Interpreter {
             let opcode_and_modecodes = extract_op_and_modes(self.memory[self.exec_ptr]);
 
             if opcode_and_modecodes.op_code == Op::End {
+                println!("Terminate ?");
                 return false;
             }
 
@@ -350,29 +350,33 @@ impl Interpreter {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_opcode_extraction() {
-        let result = extract_op_and_modes(1002);
+        let mut result = extract_op_and_modes(1002);
         assert_eq!(result, OpAndModes {
             op_code:Op::Mul,
             modes:vec![Mode::Position,Mode::Immediate]
+        });
+
+        result = extract_op_and_modes(109);
+        assert_eq!(result, OpAndModes {
+            op_code:Op::AdjustRelativeBase,
+            modes:vec![Mode::Immediate]
         })
     }
 
-    #[test]
-    fn test_traverse() {
-        let mut program = [1,9,10,3,2,3,11,0,99,30,40,50];
-        let mut input_queue = VecDeque::new();
-        input_queue.push_front(1);
-        traverse(&mut program, &mut input_queue);
-
-        print!("{:?}", program);
-    }
+//    #[test]
+//    fn test_traverse() {
+//        let mut program = [1,9,10,3,2,3,11,0,99,30,40,50];
+//        let mut input_queue = VecDeque::new();
+//        input_queue.push_front(1);
+//        traverse(&mut program, &mut input_queue);
+//
+//        print!("{:?}", program);
+//    }
 }
 
-*/

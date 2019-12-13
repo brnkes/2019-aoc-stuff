@@ -17,91 +17,70 @@ fn main() {
     File::open("./input.txt").unwrap()
         .read_to_string(&mut input).unwrap();
 
+    let q1_i = Some(1);
+    let q2_i = Some(2);
+
     let result = process(
-        input
+        input,
+        q2_i
     );
 
-    println!("Result : {}", result);
+    println!("Result : {:?}", result);
 }
 
-fn process(input: String) -> i64 {
-    generate_and_run_amps(&input)
+fn process(input: String, pass_input: Option<i64>) -> VecDeque<i64> {
+    generate_and_run_amps(&input, pass_input)
 }
 
-fn generate_and_run_amps(input: &str) -> i64 {
+fn generate_and_run_amps(input: &str, pass_input: Option<i64>) -> VecDeque<i64> {
     let codes: Vec<i64> = input
         .split(",")
         .map(|code_txt| code_txt.parse::<i64>().unwrap())
         .collect();
 
-    let feedback_output = Rc::new(RefCell::new(VecDeque::new()));
-    let mut last_output = None;
-    let mut amps: Vec<Interpreter> = Vec::new();
+    let codes_copy = codes.clone();
 
-    for amp_idx in 0..NUM_AMPS {
-        let codes_copy = codes.clone();
+    let mem_input = Rc::new(RefCell::new(VecDeque::new()));
 
-        let mem_input = match last_output {
-            Some(prev_amp_output) => {
-                prev_amp_output
-            }
-            None => {
-                feedback_output.clone()
-            }
-        };
-
-        {
-            let mut q = mem_input.as_ref().borrow_mut();
-
-            if amp_idx == 0 {
-                q.push_back(0);
-            }
+    {
+        let mut q = mem_input.as_ref().borrow_mut();
+        if let Some(initial_input) = pass_input {
+            q.push_back(initial_input);
         }
+    }
 
-        let mem_output = if amp_idx != (NUM_AMPS-1) {
-            Rc::new(RefCell::new(VecDeque::new()))
-        } else {
-            feedback_output.clone()
-        };
+    let mem_output = Rc::new(RefCell::new(VecDeque::new()));
 
 //        println!("Interpreter created : {} ... {}",
 //            amp_idx,
 //            mem_input.as_ref().borrow().front().unwrap()
 //        );
 
-        let amp = Interpreter::new(
-            0,
-            0,
-            codes_copy,
-            mem_input,
-            mem_output.clone(),
-        );
+    let mut amp = Interpreter::new(
+        0,
+        0,
+        codes_copy,
+        mem_input,
+        mem_output.clone(),
+    );
 
-        last_output = Some(mem_output);
-
-        amps.push(amp);
-    }
 
     let mut watchdog = 500;
     // process loop
     loop {
-        for amp_idx in 0..NUM_AMPS {
-            let pass_to_next = amps[amp_idx as usize].process();
+        let pass_to_next = amp.process();
 
-            // get result
-            if !pass_to_next && amp_idx == (NUM_AMPS-1) {
-                return amps[amp_idx as usize].get_last_output();
-            }
+        // get result
+        if !pass_to_next {
+            return mem_output.as_ref().borrow().clone();
+        }
 
-            watchdog -= 1;
+        watchdog -= 1;
 
-            if (watchdog) < 0 {
-                panic!("Reached max loop limit");
-            }
+        if (watchdog) < 0 {
+            panic!("Reached max loop limit");
         }
     }
-
-    0
 }
 
 #[cfg(test)]
@@ -115,9 +94,40 @@ mod tests {
     fn test_rel_1() {
         let result = process(
             String::from("109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"),
+            None
         );
 
-        assert_eq!(result, 139629729)
+        let string_repr = result
+            .iter()
+            .fold(None, |acc, next| {
+                match acc {
+                    None => Some(format!("{}", next)),
+                    Some(prev) => Some(format!("{},{}", prev, next))
+                }
+            })
+            .unwrap();
+
+        assert_eq!(string_repr, "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99");
+    }
+
+    #[test]
+    fn test_rel_2() {
+        let result = process(
+            String::from("1102,34915192,34915192,7,4,7,99,0"),
+            Some(0)
+        );
+
+        assert_eq!(result[0], 1219070632396864)
+    }
+
+    #[test]
+    fn test_rel_3() {
+        let result = process(
+            String::from("104,1125899906842624,99"),
+            Some(0)
+        );
+
+        assert_eq!(result[0], 1125899906842624)
     }
 }
 
