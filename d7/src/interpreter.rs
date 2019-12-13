@@ -1,4 +1,7 @@
+use std::borrow::{Borrow, BorrowMut};
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
+use std::rc::Rc;
 
 #[derive(PartialEq)]
 #[derive(Debug)]
@@ -29,20 +32,20 @@ impl Op {
         }
     }
 
-    fn get_binary_i64_op(&self) -> Box<dyn Fn(i64,i64) -> i64> {
+    fn get_binary_i64_op(&self) -> Box<dyn Fn(i64, i64) -> i64> {
         match self {
             Op::Sum => {
                 (Box::new(|arg1, arg2| arg1 + arg2))
             }
             Op::Mul => {
                 (Box::new(|arg1, arg2| arg1 * arg2))
-            },
+            }
             Op::LessThan => {
                 (Box::new(|arg1, arg2| if arg1 < arg2 { 1 } else { 0 }))
             }
             Op::Equals => {
                 (Box::new(|arg1, arg2| if arg1 == arg2 { 1 } else { 0 }))
-            },
+            }
             _ => panic!("Invalid arithmetic op : {:?}", self),
         }
     }
@@ -74,11 +77,11 @@ impl Mode {
 #[derive(PartialEq)]
 #[derive(Debug)]
 struct OpAndModes {
-    op_code:Op,
-    modes:Vec<Mode>
+    op_code: Op,
+    modes: Vec<Mode>,
 }
 
-fn parse_opcode(op_code:i64) -> Result<Op,String> {
+fn parse_opcode(op_code: i64) -> Result<Op, String> {
     match op_code {
         1 => Ok(Op::Sum),
         2 => Ok(Op::Mul),
@@ -93,7 +96,7 @@ fn parse_opcode(op_code:i64) -> Result<Op,String> {
     }
 }
 
-fn parse_modecode(mode_code:&i64) -> Result<Mode,String> {
+fn parse_modecode(mode_code: &i64) -> Result<Mode, String> {
     match *mode_code {
         0 => Ok(Mode::Position),
         1 => Ok(Mode::Immediate),
@@ -111,7 +114,7 @@ fn parse_modecode(mode_code:&i64) -> Result<Mode,String> {
 fn eval(
     program: &mut [i64],
     handle_output: &mut dyn FnMut(i64),
-    handle_input: &mut dyn FnMut() -> i64,
+    handle_input: &mut dyn FnMut() -> Option<i64>,
     exec_ptr: &mut usize,
     opcode_and_modecodes: OpAndModes,
 ) {
@@ -126,34 +129,43 @@ fn eval(
             modes.get(2).unwrap_or(&Mode::Position).write_with(
                 program,
                 *exec_ptr + 3,
-                opcode_and_modecodes.op_code.get_binary_i64_op()(arg1, arg2)
+                opcode_and_modecodes.op_code.get_binary_i64_op()(arg1, arg2),
             );
-        },
+        }
         // todo : bools
         Op::Input => {
-            let incoming_value = handle_input();
-            modes.get(0).unwrap_or(&Mode::Position).write_with(
-                program,
-                *exec_ptr + 1,
-                incoming_value
-            );
-        },
+            let incoming_value_opt = handle_input();
+
+            match incoming_value_opt {
+                None => {
+                    // Will retry... don't change exec ptr.
+                    return;
+                }
+                Some(incoming_value) => {
+                    modes.get(0).unwrap_or(&Mode::Position).write_with(
+                        program,
+                        *exec_ptr + 1,
+                        incoming_value,
+                    );
+                }
+            }
+        }
         Op::Output => {
             let to_output = modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1);
             handle_output(to_output);
-        },
+        }
         Op::JumpIfTrue => {
             if modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1) != 0 {
                 *exec_ptr = modes.get(1).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 2) as usize;
-                return
+                return;
             }
-        },
+        }
         Op::JumpIfFalse => {
             if modes.get(0).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 1) == 0 {
                 *exec_ptr = modes.get(1).unwrap_or(&Mode::Position).read_with(program, *exec_ptr + 2) as usize;
-                return
+                return;
             }
-        },
+        }
         Op::End => panic!("Should've been handled outside the eval block."),
     }
 
@@ -173,41 +185,79 @@ fn extract_op_and_modes(input: i64) -> OpAndModes {
 
     OpAndModes {
         op_code: parse_opcode(op_code).unwrap(),
-        modes: modes.iter().map(|code| parse_modecode(code).unwrap()).collect()
+        modes: modes.iter().map(|code| parse_modecode(code).unwrap()).collect(),
     }
 }
 
-pub fn traverse(
-    program:&mut [i64],
-    input_queue:&mut VecDeque<i64>,
-    output_queue:&mut VecDeque<i64>,
-) -> Result<(), String> {
-    let mut handle_output = |outgoing:i64| {
-//        println!("Debug / Output >>> {}", outgoing);
-        output_queue.push_back(outgoing);
-    };
+pub struct Interpreter {
+    exec_ptr: usize,
+    memory: Box<[i64]>,
+    input_queue: Rc<RefCell<VecDeque<i64>>>,
+    output_queue: Rc<RefCell<VecDeque<i64>>>,
+}
 
-    let mut handle_input = || {
-        let r = input_queue.pop_front().unwrap();
-//        println!("± {}",r);
-        r
-    };
-
-    let mut exec_ptr = 0;
-    while exec_ptr < program.len() {
-        let opcode_and_modecodes= extract_op_and_modes(program[exec_ptr]);
-
-        if opcode_and_modecodes.op_code == Op::End {
-            return Ok(());
+impl Interpreter {
+    pub fn new(
+        exec_ptr: usize,
+        memory: Box<[i64]>,
+        input_queue: Rc<RefCell<VecDeque<i64>>>,
+        output_queue: Rc<RefCell<VecDeque<i64>>>,
+    ) -> Interpreter {
+        Interpreter {
+            exec_ptr,
+            memory,
+            input_queue,
+            output_queue,
         }
-
-        eval(
-            program, &mut handle_output, &mut handle_input,
-            &mut exec_ptr, opcode_and_modecodes
-        );
     }
 
-    Ok(())
+    pub fn get_last_output(&self) -> i64 {
+        self.output_queue.as_ref().borrow().front().unwrap().clone()
+    }
+
+    pub fn process(&mut self) -> bool {
+        let output_signalled = Rc::new(Cell::new(false));
+        let input_wait = Rc::new(Cell::new(false));
+
+        let output_queue = self.output_queue.clone();
+        let input_queue = self.input_queue.clone();
+
+        let mut handle_output = |outgoing: i64| {
+            output_queue.as_ref().borrow_mut().push_back(outgoing);
+            output_signalled.as_ref().borrow_mut().set(true);
+        };
+
+        let mut handle_input = || {
+            let res = input_queue.as_ref().borrow_mut().pop_front();
+
+            if let None = res {
+                input_wait.as_ref().borrow_mut().set(true);
+            }
+
+            res
+        };
+
+        while self.exec_ptr < self.memory.len() {
+            let opcode_and_modecodes = extract_op_and_modes(self.memory[self.exec_ptr]);
+
+            if opcode_and_modecodes.op_code == Op::End {
+                return false;
+            }
+
+            eval(
+                &mut self.memory,
+                &mut handle_output,
+                &mut handle_input,
+                &mut self.exec_ptr, opcode_and_modecodes,
+            );
+
+            if output_signalled.as_ref().borrow().get() || input_wait.as_ref().borrow().get() {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 /*
