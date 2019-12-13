@@ -1,0 +1,8 @@
+{
+  "name": "d8",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "ramda": "^0.26.1"
+  }
+}
