@@ -18,7 +18,10 @@ const NUM_AMPS: i64 = 1;
 fn main() {
     let mut input = String::new();
 
-    File::open("./input.txt").unwrap()
+//    File::open("./input.txt").unwrap()
+//        .read_to_string(&mut input).unwrap();
+
+    File::open("./input-q2.txt").unwrap()
         .read_to_string(&mut input).unwrap();
 
     let result = process(
@@ -65,12 +68,20 @@ fn generate_and_run_amps(input: &str) -> usize {
 
     let mut arcade = Arcade::new();
 
+    let mut skipped_inputs_so_far = 0;
+
     let mut watchdog = 50000;
     loop {
-//        {
-//            let camera = world.camera();
-//            mem_input.borrow_mut().push_back(camera);
-//        }
+        {
+            if mem_input.borrow().len() < 1 {
+                println!("Skipped : {}", skipped_inputs_so_far);
+
+                skipped_inputs_so_far = 0;
+                mem_input.borrow_mut().push_back(0);
+            } else {
+                skipped_inputs_so_far += 1;
+            }
+        }
 
         let pass_to_next = amp.process();
 

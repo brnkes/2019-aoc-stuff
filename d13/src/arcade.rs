@@ -5,18 +5,32 @@ use std::hash::Hash;
 // todo : enum-ize tile, probably
 pub struct Arcade {
     visited_coords: HashMap<Coords,u64>,
+    joystick: i8,
+    score: u64
 }
 
 impl Arcade {
     pub fn new() -> Arcade {
         Arcade {
-            visited_coords: HashMap::new()
+            visited_coords: HashMap::new(),
+            joystick: 0,
+            score: 0
         }
     }
 
     pub fn draw_stuff(&mut self, x:i64, y:i64, tile_id: u64) {
+        if x == -1 && y == 0 {
+            self.score = tile_id;
+            return;
+        }
+
         let mut slot = self.visited_coords.entry(Coords{x,y}).or_insert(0);
         *slot = tile_id;
+    }
+
+    pub fn read_joystick(&mut self, stick_pos: i8) {
+        // todo : ...
+        self.joystick = stick_pos;
     }
 
     pub fn get_count_of(&self, tile_id:u64) -> u64 {

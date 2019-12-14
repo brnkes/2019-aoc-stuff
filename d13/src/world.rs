@@ -73,6 +73,31 @@ pub struct WorldState {
     facing: Direction,
 }
 
+pub fn get_canvas_from_coords<'a, I>(list: I) -> Canvas
+    where I:Iterator<Item=&'a Coords> {
+    let mut canvas_dims = Canvas{ x_min:0, x_max:0, y_min:0, y_max: 0 };
+
+    for key in list {
+        if key.x < canvas_dims.x_min {
+            canvas_dims.x_min = key.x;
+        }
+
+        if key.y < canvas_dims.y_min {
+            canvas_dims.y_min = key.y;
+        }
+
+        if key.x > canvas_dims.x_max {
+            canvas_dims.x_max = key.x;
+        }
+
+        if key.y > canvas_dims.y_max {
+            canvas_dims.y_max = key.y;
+        }
+    }
+
+    canvas_dims
+}
+
 impl WorldState {
     pub fn fresh() -> WorldState {
         WorldState {
@@ -87,24 +112,7 @@ impl WorldState {
     }
 
     pub fn visualize_visited_coords(&self) {
-        let mut canvas_dims = Canvas{ x_min:0, x_max:0, y_min:0, y_max: 0 };
-        for key in self.visited_coords.keys() {
-            if key.x < canvas_dims.x_min {
-                canvas_dims.x_min = key.x;
-            }
-
-            if key.y < canvas_dims.y_min {
-                canvas_dims.y_min = key.y;
-            }
-
-            if key.x > canvas_dims.x_max {
-                canvas_dims.x_max = key.x;
-            }
-
-            if key.y > canvas_dims.y_max {
-                canvas_dims.y_max = key.y;
-            }
-        }
+        let canvas_dims = get_canvas_from_coords(self.visited_coords.keys());
 
         for x in canvas_dims.x_min..=canvas_dims.x_max {
             let mut buffer = Vec::new();
