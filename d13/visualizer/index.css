@@ -1,0 +1,11 @@
+body {
+    background-color: aliceblue;
+    display: flex;
+}
+
+#main-region {
+    display: block;
+    background-color: bisque;
+    /*width: 90vw;*/
+    /*height: 90vh;*/
+}

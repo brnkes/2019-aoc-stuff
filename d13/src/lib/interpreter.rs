@@ -6,6 +6,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::Rc;
+use wasm_bindgen::prelude::*;
 
 #[derive(PartialEq)]
 #[derive(Debug)]
@@ -275,6 +276,13 @@ fn extract_op_and_modes(input: i64) -> OpAndModes {
     }
 }
 
+#[wasm_bindgen]
+pub enum InterpreterProcessResult {
+    ThreeOutputs = 0,
+    WaitingOnInput = 1,
+    Ended = 2
+}
+
 pub struct Interpreter {
     exec_ptr: usize,
     rel_base_ptr: i64,
@@ -304,7 +312,7 @@ impl Interpreter {
         self.output_queue.as_ref().borrow().back().unwrap().clone()
     }
 
-    pub fn process(&mut self) -> bool {
+    pub fn process(&mut self) -> InterpreterProcessResult {
         let output_semcount = Rc::new(Cell::new(0));
         let input_wait = Rc::new(Cell::new(false));
 
@@ -333,7 +341,7 @@ impl Interpreter {
 
             if opcode_and_modecodes.op_code == Op::End {
                 println!("Terminate ?");
-                return false;
+                return InterpreterProcessResult::Ended;
             }
 
             eval(
@@ -343,12 +351,16 @@ impl Interpreter {
                 &mut self.exec_ptr, &mut self.rel_base_ptr, opcode_and_modecodes,
             );
 
-            if output_semcount.as_ref().borrow().get() >= 3 || input_wait.as_ref().borrow().get() {
-                return true;
+            if output_semcount.as_ref().borrow().get() >= 3 {
+                return InterpreterProcessResult::ThreeOutputs;
+            }
+
+            if  input_wait.as_ref().borrow().get() {
+                return InterpreterProcessResult::WaitingOnInput;
             }
         }
 
-        return false;
+        return InterpreterProcessResult::Ended;
     }
 }
 

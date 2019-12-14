@@ -1,5 +1,6 @@
 use std::collections::{HashMap};
 use num::FromPrimitive;
+use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Coords {
@@ -59,11 +60,13 @@ impl Turn {
     }
 }
 
+#[wasm_bindgen]
+#[derive(Copy, Clone)]
 pub struct Canvas {
-    x_min: i64,
-    x_max: i64,
-    y_min: i64,
-    y_max: i64
+    pub x_min: i64,
+    pub x_max: i64,
+    pub y_min: i64,
+    pub y_max: i64
 }
 
 pub struct WorldState {

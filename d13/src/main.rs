@@ -18,9 +18,10 @@ fn main() {
     File::open("./input-q2.txt").unwrap()
         .read_to_string(&mut input).unwrap();
 
-    let result = lib::process(
+    let game = lib::Game::process(
         input
     );
 
+//    panic!("use browser");
     println!("{}", result);
 }

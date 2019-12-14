@@ -1,19 +1,22 @@
 use super::world::{Canvas, Coords};
 use std::collections::HashMap;
 use std::hash::Hash;
+use wasm_bindgen::prelude::*;
+use super::world::get_canvas_from_coords;
 
-// todo : enum-ize tile, probably
+#[wasm_bindgen]
 pub struct Arcade {
     visited_coords: HashMap<Coords,u64>,
-    joystick: i8,
+//    joystick: i8,
     score: u64
 }
 
+#[wasm_bindgen]
 impl Arcade {
     pub fn new() -> Arcade {
         Arcade {
             visited_coords: HashMap::new(),
-            joystick: 0,
+//            joystick: 0,
             score: 0
         }
     }
@@ -28,9 +31,13 @@ impl Arcade {
         *slot = tile_id;
     }
 
-    pub fn read_joystick(&mut self, stick_pos: i8) {
-        // todo : ...
-        self.joystick = stick_pos;
+    // joystick handled by browser...
+//    pub fn read_joystick(&mut self, stick_pos: i8) {
+//        self.joystick = stick_pos;
+//    }
+
+    pub fn get_canvas_size(&self) -> Canvas {
+        get_canvas_from_coords(self.visited_coords.keys())
     }
 
     pub fn get_count_of(&self, tile_id:u64) -> u64 {

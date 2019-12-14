@@ -4,11 +4,17 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build-wasm-debug": "cargo build --target wasm32-unknown-unknown && wasm-bindgen target/wasm32-unknown-unknown/debug/aoc-2019-day-13.wasm --out-dir ./visualizer/wasm",
+    "build-src-wasm": "cargo build && wasm-pack build",
     "run-visualizer": "webpack-dev-server --config webpack.config.js"
+  },
+  "dependencies": {
+    "wasm-main-app": "file:./pkg"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^5.1.1",
+    "css-loader": "^3.3.2",
+    "raw-loader": "^4.0.0",
+    "style-loader": "^1.0.1",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10",
     "webpack-dev-server": "^3.9.0"

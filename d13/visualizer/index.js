@@ -1,3 +1,7 @@
+import "./index.css";
+import * as wasm from "wasm-main-app";
+import input from "../input.txt";
+
 const repr_object = {
     0: " ",
     1: "🕳",
@@ -8,26 +12,83 @@ const repr_object = {
 
 const FRAMERATE = 15;
 
-const processGameData = () => {
+let recentlyPressedKey = 0;
+
+const initializeGameRegion = (canvasSize) => {
+    const region = document.querySelector("#main-region");
+    region.style.width = `${canvasSize.x_max-canvasSize.x_min}rem`;
+    region.style.height = `${canvasSize.y_max-canvasSize.y_min}rem`;
 
 };
 
-const updateGame = () => {
-    let totalElapsed = 0;
+const runGame = () => {
+    let prevTimestamp = 0;
+    let gameObject = wasm.Game.initialize(input);
+    let hasInitializedGameCanvas = false;
 
-    const loop = (timeElapsed) => {
-        totalElapsed += timeElapsed;
-        if(totalElapsed < 1000 * FRAMERATE / 60) {
-            requestAnimationFrame(loop);
+    const processGameData = (timestamp) => {
+        let gameInterpreterNotDone = true;
+
+        let watchdog = 5000;
+        let oc = 0;
+        while(gameInterpreterNotDone) {
+            watchdog--;
+            if(watchdog < 0) {
+                throw "Infinite loop."
+            }
+
+            const loopResult = gameObject.loop_once();
+
+            switch (loopResult) {
+                case 2: {
+                    console.log("Game Over/Done/Whatev");
+                    return;
+                }
+                case 0 : {
+                    oc++;
+                }
+                case 1 : {
+                    if(!hasInitializedGameCanvas) {
+                        initializeGameRegion(gameObject.get_arcade_size());
+                        hasInitializedGameCanvas = true;
+                    }
+
+                    gameObject.pass_input(BigInt(recentlyPressedKey));
+                    gameInterpreterNotDone = false;
+                }
+            }
         }
 
-        processGameData();
+        console.log(`Output count : ${oc}`);
 
-        totalElapsed = 0;
+        prevTimestamp = timestamp;
         requestAnimationFrame(loop);
+    };
+
+    const loop = (timestamp) => {
+        const sinceLastFrame = timestamp - prevTimestamp;
+        if(sinceLastFrame < 1000 * FRAMERATE / 60) {
+           return requestAnimationFrame(loop);
+        }
+
+        processGameData(timestamp);
     };
 
     return loop;
 };
 
-requestAnimationFrame(updateGame());
+requestAnimationFrame(runGame());
+
+document.addEventListener("keydown", event => {
+    let paddleDir;
+    switch (event.key) {
+        case "ArrowLeft": { recentlyPressedKey = -1; break; }
+        case "ArrowRight": { recentlyPressedKey = 1; break; }
+        default:
+            break;
+    }
+});
+
+document.addEventListener("keyup", event => {
+    recentlyPressedKey = 0;
+});
