@@ -98,6 +98,7 @@ fn generate_and_run_amps(input: &str) -> usize {
         }
     }
 
+    world.visualize_visited_coords();
     world.get_visited_coords_count()
 }
 

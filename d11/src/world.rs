@@ -60,10 +60,17 @@ impl Turn {
     }
 }
 
+struct Canvas {
+    x_min: i64,
+    x_max: i64,
+    y_min: i64,
+    y_max: i64
+}
+
 pub struct WorldState {
     current_location: Coords,
     visited_coords: HashMap<Coords,Color>,
-    facing: Direction
+    facing: Direction,
 }
 
 impl WorldState {
@@ -77,6 +84,41 @@ impl WorldState {
 
     pub fn get_visited_coords_count(&self) -> usize {
         self.visited_coords.len()
+    }
+
+    pub fn visualize_visited_coords(&self) {
+        let mut canvas_dims = Canvas{ x_min:0, x_max:0, y_min:0, y_max: 0 };
+        for key in self.visited_coords.keys() {
+            if key.x < canvas_dims.x_min {
+                canvas_dims.x_min = key.x;
+            }
+
+            if key.y < canvas_dims.y_min {
+                canvas_dims.y_min = key.y;
+            }
+
+            if key.x > canvas_dims.x_max {
+                canvas_dims.x_max = key.x;
+            }
+
+            if key.y > canvas_dims.y_max {
+                canvas_dims.y_max = key.y;
+            }
+        }
+
+        for x in canvas_dims.x_min..=canvas_dims.x_max {
+            let mut buffer = Vec::new();
+            for y in canvas_dims.y_min..=canvas_dims.y_max {
+                let buf_next = match self.visited_coords.get(&Coords{x,y}).unwrap_or(&Color::White) {
+                    Color::Black => { " " },
+                    Color::White => { "X" },
+                };
+
+                buffer.push(buf_next);
+            }
+
+            println!("{:?}", buffer.join(""));
+        }
     }
 
     pub fn camera(&self) -> i64 {
@@ -141,5 +183,7 @@ mod tests {
         s.translate();
 
         assert_eq!(s.visited_coords.len(), 3);
+
+        s.visualize_visited_coords();
     }
 }
