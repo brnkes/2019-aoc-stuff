@@ -343,7 +343,7 @@ impl Interpreter {
                 &mut self.exec_ptr, &mut self.rel_base_ptr, opcode_and_modecodes,
             );
 
-            if output_semcount.as_ref().borrow().get() >= 2 || input_wait.as_ref().borrow().get() {
+            if output_semcount.as_ref().borrow().get() >= 3 || input_wait.as_ref().borrow().get() {
                 return true;
             }
         }

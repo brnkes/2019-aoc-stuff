@@ -4,8 +4,8 @@ use crate::world::Direction::Up;
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Coords {
-    x: i64,
-    y: i64
+    pub x: i64,
+    pub y: i64
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -60,7 +60,7 @@ impl Turn {
     }
 }
 
-struct Canvas {
+pub struct Canvas {
     x_min: i64,
     x_max: i64,
     y_min: i64,

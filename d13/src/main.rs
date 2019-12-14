@@ -7,9 +7,11 @@ use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
 use crate::world::{WorldState, Color, Turn};
+use crate::arcade::Arcade;
 
 mod interpreter;
 mod world;
+mod arcade;
 
 const NUM_AMPS: i64 = 1;
 
@@ -61,14 +63,14 @@ fn generate_and_run_amps(input: &str) -> usize {
 
     // run stuff
 
-    let mut world = WorldState::fresh();
+    let mut arcade = Arcade::new();
 
     let mut watchdog = 50000;
     loop {
-        {
-            let camera = world.camera();
-            mem_input.borrow_mut().push_back(camera);
-        }
+//        {
+//            let camera = world.camera();
+//            mem_input.borrow_mut().push_back(camera);
+//        }
 
         let pass_to_next = amp.process();
 
@@ -77,18 +79,16 @@ fn generate_and_run_amps(input: &str) -> usize {
             break;
         }
 
-        assert!(mem_output.borrow().len() >= 2, "Should've outputted 2 values.");
+        assert_eq!(mem_output.borrow().len(), 3, "Should've outputted 3 values.");
 
         {
             let mut output_q = mem_output.borrow_mut();
 
-            let color = output_q.pop_front().unwrap();
-            world.paint(Color::convert(color));
+            let x = output_q.pop_front().unwrap();
+            let y = output_q.pop_front().unwrap();
+            let tile_id = output_q.pop_front().unwrap();
 
-            let turn_dir = output_q.pop_front().unwrap();
-            world.turn(Turn::convert(turn_dir));
-
-            world.translate();
+            arcade.draw_stuff(x,y,tile_id as u64);
         }
 
         watchdog -= 1;
@@ -98,8 +98,9 @@ fn generate_and_run_amps(input: &str) -> usize {
         }
     }
 
-    world.visualize_visited_coords();
-    world.get_visited_coords_count()
+//    world.visualize_visited_coords();
+    arcade.get_count_of(2) as usize
+//    world.get_visited_coords_count()
 }
 
 #[cfg(test)]
