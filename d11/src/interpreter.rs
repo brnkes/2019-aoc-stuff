@@ -305,7 +305,7 @@ impl Interpreter {
     }
 
     pub fn process(&mut self) -> bool {
-        let output_signalled = Rc::new(Cell::new(false));
+        let output_semcount = Rc::new(Cell::new(0));
         let input_wait = Rc::new(Cell::new(false));
 
         let output_queue = self.output_queue.clone();
@@ -313,7 +313,9 @@ impl Interpreter {
 
         let mut handle_output = |outgoing: i64| {
             output_queue.as_ref().borrow_mut().push_back(outgoing);
-            output_signalled.as_ref().borrow_mut().set(true);
+            let mut sc_r = output_semcount.as_ref();
+            let mut sc = sc_r.borrow_mut();
+            sc.set(sc.get() + 1);
         };
 
         let mut handle_input = || {
@@ -341,7 +343,7 @@ impl Interpreter {
                 &mut self.exec_ptr, &mut self.rel_base_ptr, opcode_and_modecodes,
             );
 
-            if output_signalled.as_ref().borrow().get() || input_wait.as_ref().borrow().get() {
+            if output_semcount.as_ref().borrow().get() >= 2 || input_wait.as_ref().borrow().get() {
                 return true;
             }
         }

@@ -9,13 +9,13 @@ pub struct Coords {
 }
 
 #[derive(Debug, Copy, Clone)]
-enum Color {
+pub enum Color {
     Black = 0,
     White = 1
 }
 
 impl Color {
-    pub fn convert(n: i32) -> Color {
+    pub fn convert(n: i64) -> Color {
         match n {
             0 => Color::Black,
             1 => Color::White,
@@ -25,7 +25,7 @@ impl Color {
 }
 
 #[derive(Debug, Copy, Clone)]
-enum Direction {
+pub enum Direction {
     Up = 0,
     Left = 1,
     Down = 2,
@@ -33,7 +33,7 @@ enum Direction {
 }
 
 impl Direction {
-    pub fn convert(n: i32) -> Direction {
+    pub fn convert(n: i64) -> Direction {
         match n {
             0 => Direction::Up,
             1 => Direction::Left,
@@ -45,13 +45,13 @@ impl Direction {
 }
 
 #[derive(Debug)]
-enum Turn {
+pub enum Turn {
     Counterclockwise = 0,
     Clockwise = 1
 }
 
 impl Turn {
-    pub fn convert(n: i32) -> Turn {
+    pub fn convert(n: i64) -> Turn {
         match n {
             0 => Turn::Counterclockwise,
             1 => Turn::Clockwise,
@@ -60,7 +60,7 @@ impl Turn {
     }
 }
 
-struct WorldState {
+pub struct WorldState {
     current_location: Coords,
     visited_coords: HashMap<Coords,Color>,
     facing: Direction
@@ -75,18 +75,29 @@ impl WorldState {
         }
     }
 
+    pub fn get_visited_coords_count(&self) -> usize {
+        self.visited_coords.len()
+    }
+
+    pub fn camera(&self) -> i64 {
+        match self.visited_coords.get(&self.current_location) {
+            None => Color::White as i64,
+            Some(col) => *col as i64,
+        }
+    }
+
     pub fn paint(&mut self, color:Color) {
-        let panel_ref = self.visited_coords.entry(self.current_location).or_insert(Color::Black);
+        let panel_ref = self.visited_coords.entry(self.current_location).or_insert(Color::White);
         *panel_ref = color;
     }
 
     pub fn turn(&mut self, turn:Turn) {
         match turn {
             Turn::Counterclockwise => {
-                self.facing = Direction::convert((self.facing as i32 + 1) % 4);
+                self.facing = Direction::convert((self.facing as i64 + 1) % 4);
             },
             Turn::Clockwise => {
-                self.facing = Direction::convert((self.facing as i32 + 3) % 4);
+                self.facing = Direction::convert((self.facing as i64 + 3) % 4);
             },
         }
     }
@@ -108,6 +119,8 @@ mod tests {
     #[test]
     fn test_visit() {
         let mut s = WorldState::fresh();
+        assert_eq!(s.camera(), Color::White as i64);
+
         s.paint(Color::White);
         s.turn(Turn::Clockwise);
         s.translate();
@@ -118,7 +131,10 @@ mod tests {
 
         s.turn(Turn::Clockwise);
         s.turn(Turn::Clockwise);
-        s.paint(Color::Black);
+        s.paint(Color::White);
+
+        assert_eq!(s.camera(), Color::White as i64);
+
         s.translate();
 
         s.paint(Color::Black);

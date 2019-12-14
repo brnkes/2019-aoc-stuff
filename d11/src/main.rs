@@ -6,6 +6,7 @@ use std::io::Read;
 use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
+use crate::world::{WorldState, Color, Turn};
 
 mod interpreter;
 mod world;
@@ -18,22 +19,18 @@ fn main() {
     File::open("./input.txt").unwrap()
         .read_to_string(&mut input).unwrap();
 
-    let q1_i = Some(1);
-    let q2_i = Some(2);
-
     let result = process(
-        input,
-        q2_i
+        input
     );
 
-    println!("Result : {:?}", result);
+    println!("{}", result);
 }
 
-fn process(input: String, pass_input: Option<i64>) -> VecDeque<i64> {
-    generate_and_run_amps(&input, pass_input)
+fn process(input: String) -> usize {
+    generate_and_run_amps(&input)
 }
 
-fn generate_and_run_amps(input: &str, pass_input: Option<i64>) -> VecDeque<i64> {
+fn generate_and_run_amps(input: &str) -> usize {
     let codes: Vec<i64> = input
         .split(",")
         .map(|code_txt| code_txt.parse::<i64>().unwrap())
@@ -45,9 +42,6 @@ fn generate_and_run_amps(input: &str, pass_input: Option<i64>) -> VecDeque<i64> 
 
     {
         let mut q = mem_input.as_ref().borrow_mut();
-        if let Some(initial_input) = pass_input {
-            q.push_back(initial_input);
-        }
     }
 
     let mem_output = Rc::new(RefCell::new(VecDeque::new()));
@@ -61,19 +55,40 @@ fn generate_and_run_amps(input: &str, pass_input: Option<i64>) -> VecDeque<i64> 
         0,
         0,
         codes_copy,
-        mem_input,
+        mem_input.clone(),
         mem_output.clone(),
     );
 
+    // run stuff
 
-    let mut watchdog = 500;
-    // process loop
+    let mut world = WorldState::fresh();
+
+    let mut watchdog = 50000;
     loop {
+        {
+            let camera = world.camera();
+            mem_input.borrow_mut().push_back(camera);
+        }
+
         let pass_to_next = amp.process();
 
         // get result
         if !pass_to_next {
-            return mem_output.as_ref().borrow().clone();
+            break;
+        }
+
+        assert!(mem_output.borrow().len() >= 2, "Should've outputted 2 values.");
+
+        {
+            let mut output_q = mem_output.borrow_mut();
+
+            let color = output_q.pop_front().unwrap();
+            world.paint(Color::convert(color));
+
+            let turn_dir = output_q.pop_front().unwrap();
+            world.turn(Turn::convert(turn_dir));
+
+            world.translate();
         }
 
         watchdog -= 1;
@@ -82,6 +97,8 @@ fn generate_and_run_amps(input: &str, pass_input: Option<i64>) -> VecDeque<i64> 
             panic!("Reached max loop limit");
         }
     }
+
+    world.get_visited_coords_count()
 }
 
 #[cfg(test)]
@@ -90,46 +107,6 @@ mod tests {
     use std::rc::Rc;
 
     use super::*;
-
-    #[test]
-    fn test_rel_1() {
-        let result = process(
-            String::from("109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"),
-            None
-        );
-
-        let string_repr = result
-            .iter()
-            .fold(None, |acc, next| {
-                match acc {
-                    None => Some(format!("{}", next)),
-                    Some(prev) => Some(format!("{},{}", prev, next))
-                }
-            })
-            .unwrap();
-
-        assert_eq!(string_repr, "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99");
-    }
-
-    #[test]
-    fn test_rel_2() {
-        let result = process(
-            String::from("1102,34915192,34915192,7,4,7,99,0"),
-            Some(0)
-        );
-
-        assert_eq!(result[0], 1219070632396864)
-    }
-
-    #[test]
-    fn test_rel_3() {
-        let result = process(
-            String::from("104,1125899906842624,99"),
-            Some(0)
-        );
-
-        assert_eq!(result[0], 1125899906842624)
-    }
 }
 
 
