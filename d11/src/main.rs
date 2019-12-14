@@ -8,6 +8,7 @@ use std::rc::Rc;
 use crate::interpreter::Interpreter;
 
 mod interpreter;
+mod world;
 
 const NUM_AMPS: i64 = 1;
 
