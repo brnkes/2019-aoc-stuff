@@ -1,4 +1,4 @@
-use crate::world::{Canvas, Coords};
+use super::world::{Canvas, Coords};
 use std::collections::HashMap;
 use std::hash::Hash;
 

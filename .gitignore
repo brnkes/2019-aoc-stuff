@@ -2,6 +2,7 @@
 
 #js
 **/node_modules/*
+**/yarn-error.log
 
 #rs
 **/Cargo.lock

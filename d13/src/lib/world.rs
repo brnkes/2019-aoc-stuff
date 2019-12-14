@@ -1,6 +1,5 @@
 use std::collections::{HashMap};
 use num::FromPrimitive;
-use crate::world::Direction::Up;
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Coords {
