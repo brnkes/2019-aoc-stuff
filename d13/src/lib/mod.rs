@@ -6,7 +6,7 @@ use std::io::Read;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
-mod interpreter;
+pub mod interpreter;
 mod world;
 mod arcade;
 
@@ -25,7 +25,16 @@ extern {
     fn await_input() -> i64;
 }
 
+pub struct Game {
+    amp: Interpreter,
+    arcade: Arcade,
+    watchdog: i32,
+    pub mem_input: Rc<RefCell<VecDeque<i64>>>,
+    pub mem_output: Rc<RefCell<VecDeque<i64>>>,
+}
+
 #[wasm_bindgen]
+#[cfg(target_arch = "wasm32")]
 pub struct Game {
     amp: Interpreter,
     arcade: Arcade,
@@ -101,19 +110,6 @@ impl Game {
             mem_input,
             mem_output
         } = self;
-
-        // todo.
-//        {
-//            if mem_input.borrow().len() < 1 {
-////                println!("Skipped : {}", skipped_inputs_so_far);
-//
-////                skipped_inputs_so_far = 0;
-//                mem_input.borrow_mut().push_back(0);
-//            }
-////            else {
-////                skipped_inputs_so_far += 1;
-////            }
-//        }
 
         let pass_to_next = amp.process();
 
