@@ -351,7 +351,7 @@ impl Interpreter {
                 &mut self.exec_ptr, &mut self.rel_base_ptr, opcode_and_modecodes,
             );
 
-            if output_semcount.as_ref().borrow().get() >= 3 {
+            if output_semcount.as_ref().borrow().get() == 3 {
                 return InterpreterProcessResult::ThreeOutputs;
             }
 

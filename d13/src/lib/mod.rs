@@ -18,6 +18,9 @@ use world::{WorldState, Color, Turn};
 use arcade::Arcade;
 use world::Canvas;
 
+#[cfg(target_arch = "wasm32")]
+use wasm::util;
+
 const NUM_AMPS: i64 = 1;
 
 #[wasm_bindgen]
@@ -25,9 +28,10 @@ extern {
     fn await_input() -> i64;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Game {
     amp: Interpreter,
-    arcade: Arcade,
+    pub arcade: Arcade,
     watchdog: i32,
     pub mem_input: Rc<RefCell<VecDeque<i64>>>,
     pub mem_output: Rc<RefCell<VecDeque<i64>>>,
@@ -43,9 +47,12 @@ pub struct Game {
     mem_output: Rc<RefCell<VecDeque<i64>>>,
 }
 
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl Game {
     pub fn initialize(input: String) -> Game {
+        #[cfg(target_arch = "wasm32")]
+        util::set_panic_hook();
+
         Game::generate_and_run_amps(&input)
     }
 
@@ -59,9 +66,9 @@ impl Game {
 
         let mem_input = Rc::new(RefCell::new(VecDeque::new()));
 
-        {
-            let mut q = mem_input.as_ref().borrow_mut();
-        }
+//        {
+//            let mut q = mem_input.as_ref().borrow_mut();
+//        }
 
         let mem_output = Rc::new(RefCell::new(VecDeque::new()));
 
@@ -78,6 +85,8 @@ impl Game {
         let mut arcade = Arcade::new();
         let mut skipped_inputs_so_far = 0;
         let mut watchdog = 50000;
+
+        assert_eq!(mem_output.borrow().len(), 0, "Should have XXX values.");
 
         Game {
             amp,
@@ -102,6 +111,20 @@ impl Game {
         }
     }
 
+    pub fn get_output(&mut self) -> Vec<i64> {
+        const OUTPUT_QUEUE_QUERY_REPEAT_COUNT : u32 = 3;
+
+        assert_eq!(self.mem_output.borrow().len(), 3, "get_output : Should've outputted 3 values.");
+
+        let mut q = self.mem_output.borrow_mut();
+
+        let mut ret = Vec::new();
+        for i in 0..OUTPUT_QUEUE_QUERY_REPEAT_COUNT {
+            ret.push(q.pop_front().unwrap());
+        }
+        ret
+    }
+
     pub fn loop_once(&mut self) -> InterpreterProcessResult {
         let Game {
             amp,
@@ -111,21 +134,23 @@ impl Game {
             mem_output
         } = self;
 
+        assert_eq!(mem_output.borrow().len(), 0, "Should have 0 values.");
+
         let pass_to_next = amp.process();
 
         match pass_to_next {
             InterpreterProcessResult::ThreeOutputs => {
                 assert_eq!(mem_output.borrow().len(), 3, "Should've outputted 3 values.");
 
-                {
-                    let mut output_q = mem_output.borrow_mut();
-
-                    let x = output_q.pop_front().unwrap();
-                    let y = output_q.pop_front().unwrap();
-                    let tile_id = output_q.pop_front().unwrap();
-
-                    arcade.draw_stuff(x,y,tile_id as u64);
-                }
+//                {
+//                    let mut output_q = mem_output.borrow_mut();
+//
+//                    let x = output_q.pop_front().unwrap();
+//                    let y = output_q.pop_front().unwrap();
+//                    let tile_id = output_q.pop_front().unwrap();
+//
+//                    arcade.draw_stuff(x,y,tile_id as u64);
+//                }
 
                 *watchdog -= 1;
 

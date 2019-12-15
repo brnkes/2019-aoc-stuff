@@ -4,7 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build-src-wasm": "cargo build && wasm-pack build",
+    "build-src-wasm-dev": "cargo build && wasm-pack build --dev",
+    "update-wasm-pkg": "yarn upgrade wasm-main-app",
     "run-visualizer": "webpack-dev-server --config webpack.config.js"
   },
   "dependencies": {

@@ -42,13 +42,13 @@ fn main() {
         }
 
         {
-            let mut output_q = mem_output.borrow_mut();
+            let mut output_q = game.mem_output.borrow_mut();
 
             let x = output_q.pop_front().unwrap();
             let y = output_q.pop_front().unwrap();
             let tile_id = output_q.pop_front().unwrap();
 
-            arcade.draw_stuff(x,y,tile_id as u64);
+            game.arcade.draw_stuff(x,y,tile_id as u64);
         }
 
         watchdog -= 1;
