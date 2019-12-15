@@ -10,17 +10,17 @@ const repr_object = {
     4: "⚽️"
 };
 
-const FRAMERATE = 4;
+const FRAMERATE = 60;
 const region = document.querySelector("#main-region");
 const tiles = {
 
 };
 
-let recentlyPressedKeys = [];
+let recentlyPressedKey = 0;
 
 const getIfScore = (threetuple) => {
     return threetuple[0] === -1n && threetuple[1] === 0n ? threetuple[2] : null;
-};
+}
 
 const initializeGameRegion = (canvasSize, objects) => {
     console.log(`Init region`);
@@ -59,7 +59,7 @@ const runGame = () => {
     let prevTimestamp = 0;
     let gameObject = wasm.Game.initialize(input);
     let hasInitializedGameCanvas = false;
-    let notWaitingForInput = true;
+    let notWaitingForInput;
 
     let object_queue_pre_canvas_prep = [];
     const put_to_object_queue = (ob) => {
@@ -67,7 +67,7 @@ const runGame = () => {
     };
 
     const processGameData = () => {
-        console.log("Process start");
+        // console.log("Process start");
 
         let watchdog = 5000;
         let oc = 0;
@@ -99,13 +99,13 @@ const runGame = () => {
                     break;
                 }
                 case 1 : {
-                    console.log(`Outputs so far A : ${oc}`);
+                    // console.log(`Outputs so far A : ${oc}`);
                     notWaitingForInput = false;
                     break;
                 }
                 case 2: {
-                    console.log(`Outputs so far B : ${oc}`);
-                    console.log("Game Over/Done/Whatev");
+                    // console.log(`Outputs so far B : ${oc}`);
+                    // console.log("Game Over/Done/Whatev");
                     return;
                 }
             }
@@ -113,12 +113,7 @@ const runGame = () => {
             // console.log("Terminate loop", loopResult);
         }
 
-        if(recentlyPressedKeys.length < 1) {
-            recentlyPressedKeys.push(0);
-        }
-        recentlyPressedKeys.forEach((k) =>
-            gameObject.pass_input(BigInt(k))
-        );
+        gameObject.pass_input(BigInt(recentlyPressedKey));
         notWaitingForInput = true;
 
         requestAnimationFrame(loop);
@@ -142,13 +137,13 @@ requestAnimationFrame(runGame());
 document.addEventListener("keydown", event => {
     let paddleDir;
     switch (event.key) {
-        case "ArrowLeft": { recentlyPressedKeys.push(-1); break; }
-        case "ArrowRight": { recentlyPressedKeys.push(1); break; }
+        case "ArrowLeft": { recentlyPressedKey = -1; break; }
+        case "ArrowRight": { recentlyPressedKey = 1; break; }
         default:
             break;
     }
 });
 
 document.addEventListener("keyup", event => {
-    recentlyPressedKeys.push(0);
+    recentlyPressedKey = 0;
 });

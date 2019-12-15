@@ -103,12 +103,7 @@ impl Game {
 
     pub fn pass_input(&mut self, input: i64) {
         let mut q = self.mem_input.borrow_mut();
-        match q.front_mut() {
-            None => { q.push_back(input) },
-            Some(front) => {
-                *front = input
-            },
-        }
+        q.push_back(input);
     }
 
     pub fn get_output(&mut self) -> Vec<i64> {
