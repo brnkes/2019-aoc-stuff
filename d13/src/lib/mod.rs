@@ -134,13 +134,11 @@ impl Game {
             mem_output
         } = self;
 
-        assert_eq!(mem_output.borrow().len(), 0, "Should have 0 values.");
-
         let pass_to_next = amp.process();
 
         match pass_to_next {
             InterpreterProcessResult::ThreeOutputs => {
-                assert_eq!(mem_output.borrow().len(), 3, "Should've outputted 3 values.");
+//                assert_eq!(mem_output.borrow().len(), 3, "loop_once : Should've outputted 3 values.");
 
 //                {
 //                    let mut output_q = mem_output.borrow_mut();

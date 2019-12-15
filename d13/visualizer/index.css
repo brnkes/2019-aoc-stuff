@@ -1,11 +1,16 @@
 body {
     background-color: aliceblue;
-    display: flex;
 }
 
 #main-region {
     display: block;
     background-color: bisque;
+    position: relative;
     /*width: 90vw;*/
     /*height: 90vh;*/
+}
+
+.game-block {
+    position: absolute;
+    font-size: 1rem;
 }
