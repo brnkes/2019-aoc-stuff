@@ -1,0 +1,30 @@
+[package]
+name = "aoc-2019-day-13"
+version = "0.1.0"
+authors = ["brnkes <baran@brnkes.me>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["console_error_panic_hook"]
+
+[lib]
+crate-type = ["cdylib"]
+name = "day13"
+path = "src/lib/mod.rs"
+
+[[bin]]
+name = "day13-main"
+path = "src/main.rs"
+
+[dependencies]
+num = "0.2"
+wasm-bindgen = "0.2.55"
+console_error_panic_hook = { version = "0.1.1", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.2"
+
+[profile.release]
+opt-level = "s"
