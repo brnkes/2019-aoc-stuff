@@ -86,15 +86,6 @@ impl Runner {
         }
     }
 
-//    pub fn get_arcade_size(&self) -> Canvas {
-//        self.arcade.get_canvas_size()
-//    }
-
-    pub fn paint_inferred(&self) { // HashMap<Coords,Tile> {
-        self.robot.visualize_visited_coords();
-//        self.robot.inferred_tiles_by_coords.clone()
-    }
-
     pub fn pass_input(&mut self, input: i64) {
         let mut q = self.mem_input.borrow_mut();
         q.push_back(input);
@@ -121,31 +112,40 @@ impl Runner {
             mem_output
         } = self;
 
-        let next_move = robot.pick_next_walk_direction();
-        mem_input.borrow_mut().push_back(next_move as i64);
+        let next_move_r = robot.pick_next_walk_direction();
 
-        let pass_to_next = interpreter.process();
+        match next_move_r {
+            Err(_) => {
+                println!("Ended search, measuring oxygen propagation...");
+                return Some(robot.measure_fill_oxygen());
+            }
+            Ok(next_move) => {
+                mem_input.borrow_mut().push_back(next_move as i64);
 
-        match pass_to_next {
-            InterpreterProcessResult::OneOutput => {
-                let robot_query_result = mem_output.borrow_mut().pop_front().unwrap();
-                let tile = Tile::convert(robot_query_result);
-                robot.interpret_robot_status(next_move, tile);
+                let pass_to_next = interpreter.process();
 
-                if let Tile::Oxygen = tile {
-                    println!("Oxygen found...");
-                    return Some(robot.get_steps_to_origin())
+                match pass_to_next {
+                    InterpreterProcessResult::OneOutput => {
+                        let robot_query_result = mem_output.borrow_mut().pop_front().unwrap();
+                        let tile = Tile::convert(robot_query_result);
+                        robot.interpret_robot_status(next_move, tile);
+
+//                if let Tile::Oxygen = tile {
+//                    println!("Oxygen found...");
+//                    // return Some(robot.get_steps_to_origin())
+//                }
+                    },
+                    InterpreterProcessResult::WaitingOnInput => {
+                        panic!("Shouldn't wait for inputs in this loop mode.");
+                    },
+                    InterpreterProcessResult::Ended => {
+                        panic!("Shouldn't end ; robot will decide the termination (?).");
+                    }
                 }
-            },
-            InterpreterProcessResult::WaitingOnInput => {
-                panic!("Shouldn't wait for inputs in this loop mode.");
-            },
-            InterpreterProcessResult::Ended => {
-                panic!("Shouldn't end ; robot will decide the termination (?).");
+
+                return None
             }
         }
-
-        return None
     }
 
 }

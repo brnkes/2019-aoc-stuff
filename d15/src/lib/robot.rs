@@ -3,6 +3,8 @@ use num::{FromPrimitive, abs};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::__rt::std::collections::{VecDeque, HashSet};
 use std::ops::Sub;
+use std::rc::Rc;
+use wasm_bindgen::__rt::core::cell::RefCell;
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Coords {
@@ -172,7 +174,6 @@ impl RobotState {
 //        println!("After adding new node : {:?}", &self.search_queue);
     }
 
-
     pub fn visualize_visited_coords(&self) {
         let canvas_dims = get_canvas_from_coords(self.inferred_tiles_by_coords.keys());
 
@@ -230,10 +231,14 @@ impl RobotState {
         return q;
     }
 
-    pub fn pick_next_walk_direction(&mut self) -> Direction {
+    pub fn pick_next_walk_direction(&mut self) -> Result<Direction,()> {
         if let None = self.node_search_in_progress {
 //            println!("NEW NODE INCOMING...");
-            self.node_search_in_progress = self.search_queue.pop_front();
+            let next_search_cacandidate = self.search_queue.pop_front();
+            if let None = next_search_cacandidate {
+                return Err(())
+            }
+            self.node_search_in_progress = next_search_cacandidate
         }
 
         let candidates_found = self.node_search_in_progress.as_ref().unwrap().candidates.len() > 0;
@@ -287,7 +292,7 @@ impl RobotState {
                     }
                 };
 
-                return dir;
+                return Ok(dir);
             }
             None => {
                 panic!("Should've had a non-empty search queue");
@@ -361,13 +366,109 @@ impl RobotState {
     pub fn get_steps_to_origin(&self) -> u32 {
         assert_eq!(
             *self.inferred_tiles_by_coords.get(&self.current_location).unwrap() as u32, Tile::Oxygen as u32,
-            "Should be called only after O is found ?");
+            "Should be called only after Oxygen is found ?");
 
         let path = self.find_path_from_to(
             Coords{x:0,y:0}, self.current_location, &HashSet::new());
 
         println!("{:?}", path);
         path.len() as u32
+    }
+
+    pub fn measure_fill_oxygen(&self) -> u32 {
+        let mut oxygen_entry = self.inferred_tiles_by_coords.iter().find(|(&key,&value)| {
+            if let Tile::Oxygen = value {
+                return true;
+            }
+            return false;
+        });
+
+        let coord_oxygen = oxygen_entry.unwrap().0.clone();
+
+//        let canvas_dims = get_canvas_from_coords(self.inferred_tiles_by_coords.keys());
+//
+//        for y in (canvas_dims.y_min..=canvas_dims.y_max).rev() {
+//            for x in canvas_dims.x_min..=canvas_dims.x_max {
+//                let buf_next = match self.inferred_tiles_by_coords.get(&Coords{x,y}).unwrap_or(&Tile::Unexplored) {
+//                    Tile::Empty => {
+//                        " "
+//                    },
+//                    Tile::Wall => {
+//                        "O"
+//                    },
+//                    Tile::Oxygen => {
+//                        "."
+//                    },
+//                    Tile::Unexplored => {
+//                        "X"
+//                    }
+//                };
+//
+//                buffer.push(buf_next);
+//            }
+//
+//            println!("{:?}", buffer.join(""));
+//        }
+
+        let mut backlog_ref = Rc::new(RefCell::new(VecDeque::new()));
+        backlog_ref.borrow_mut().push_back(&coord_oxygen);
+
+        let mut backlog_next_ref = Rc::new(RefCell::new(VecDeque::new()));
+
+        let mut traversed = HashSet::new();
+
+        let mut minutes = 0;
+
+        loop {
+            {
+                let mut backlog = backlog_ref.borrow_mut();
+                let mut backlog_next = backlog_next_ref.borrow_mut();
+
+                if backlog.is_empty() && backlog_next.is_empty() {
+                    break;
+                }
+
+                let coord = backlog.pop_front().unwrap();
+                if let Some(connected_coords) = self.pathways.get(&coord) {
+                    traversed.insert(coord);
+
+                    match self.inferred_tiles_by_coords.get(&coord) {
+                        None => {
+                            panic!("Unexpected...");
+                        },
+                        Some(t) => {
+                            match t {
+                                Tile::Wall => { continue },
+                                Tile::Unexplored => { continue },
+                                Tile::Empty => {
+
+                                },
+                                Tile::Oxygen => {
+
+                                },
+                            }
+                        },
+                    }
+
+                    for connected in connected_coords.iter() {
+                        if traversed.contains(connected) {
+                            continue;
+                        }
+
+                        backlog_next.push_back(connected);
+                    }
+                }
+            }
+
+            if backlog_ref.borrow().is_empty() {
+                minutes += 1;
+
+                backlog_ref = backlog_next_ref.clone();
+                backlog_next_ref = Rc::new(RefCell::new(VecDeque::new()));
+            }
+        }
+        
+        minutes - 1
     }
 }
 

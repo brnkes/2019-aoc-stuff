@@ -31,13 +31,14 @@ fn main() {
         watchdog -= 1;
 
         if (watchdog) < 0 {
-            runner.paint_inferred();
+            runner.robot.visualize_visited_coords();
             panic!("Reached max loop limit");
         }
 
         if let Some(rv) = pass_to_next {
-            runner.paint_inferred();
+            runner.robot.visualize_visited_coords();
             println!("Dist : {}", rv);
+
             break;
         }
     }
