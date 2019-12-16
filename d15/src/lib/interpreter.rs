@@ -278,7 +278,7 @@ fn extract_op_and_modes(input: i64) -> OpAndModes {
 
 #[wasm_bindgen]
 pub enum InterpreterProcessResult {
-    ThreeOutputs = 0,
+    OneOutput = 0,
     WaitingOnInput = 1,
     Ended = 2
 }
@@ -351,8 +351,8 @@ impl Interpreter {
                 &mut self.exec_ptr, &mut self.rel_base_ptr, opcode_and_modecodes,
             );
 
-            if output_semcount.as_ref().borrow().get() == 3 {
-                return InterpreterProcessResult::ThreeOutputs;
+            if output_semcount.as_ref().borrow().get() == 1 {
+                return InterpreterProcessResult::OneOutput;
             }
 
             if  input_wait.as_ref().borrow().get() {

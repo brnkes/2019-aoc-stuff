@@ -1,8 +1,8 @@
-use super::world::{Canvas, Coords};
+use super::robot::{Canvas, Coords};
 use std::collections::HashMap;
 use std::hash::Hash;
 use wasm_bindgen::prelude::*;
-use super::world::get_canvas_from_coords;
+use super::robot::get_canvas_from_coords;
 
 #[wasm_bindgen]
 pub struct Arcade {

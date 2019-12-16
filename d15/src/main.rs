@@ -17,48 +17,31 @@ fn main() {
     File::open("./input.txt").unwrap()
         .read_to_string(&mut input).unwrap();
 
-//    File::open("./input-q2.txt").unwrap()
-//        .read_to_string(&mut input).unwrap();
-
-    let mut game = lib::Game::initialize(
+    let mut runner = lib::runner::Runner::initialize(
         input
     );
 
     let mut oc = 0;
-    let mut watchdog = 50000;
+    let mut watchdog = 80000;
     loop {
-        let pass_to_next = game.loop_once();
+        let pass_to_next = runner.execute_next_loop();
 
-        match pass_to_next {
-            InterpreterProcessResult::ThreeOutputs => {
-                oc += 1;
-                //            assert_eq!(mem_output.borrow().len(), 3, "Should've outputted 3 values.");
-            },
-            InterpreterProcessResult::WaitingOnInput => {
-                println!("Outputs so far : {}", oc);
-                oc = 0;
-            },
-            InterpreterProcessResult::Ended => { break; },
-        }
-
-        {
-            let mut output_q = game.mem_output.borrow_mut();
-
-            let x = output_q.pop_front().unwrap();
-            let y = output_q.pop_front().unwrap();
-            let tile_id = output_q.pop_front().unwrap();
-
-            game.arcade.draw_stuff(x,y,tile_id as u64);
-        }
+//        println!("=====================");
 
         watchdog -= 1;
 
         if (watchdog) < 0 {
+            runner.paint_inferred();
             panic!("Reached max loop limit");
+        }
+
+        if let Some(rv) = pass_to_next {
+            runner.paint_inferred();
+            println!("Dist : {}", rv);
+            break;
         }
     }
 
-    println!("Outputs last : {}", oc);
 
 //    panic!("use browser");
 //    println!("{}", result);
