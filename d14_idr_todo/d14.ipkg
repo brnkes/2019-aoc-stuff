@@ -1,0 +1,4 @@
+package d14
+
+pkgs = idrisscript
+modules = Parse
