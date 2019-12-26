@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Program.fs" />
+    <Compile Include="Solve.fs" />
+    <Compile Include="Parser.fs" />
   </ItemGroup>
-
+  
   <ItemGroup>
-    <ProjectReference Include=".\d14.Lib\d14.Lib.fsproj" />
+    <PackageReference Include="FSharpx.Collections" Version="2.1.1" />
   </ItemGroup>
 
 </Project>
