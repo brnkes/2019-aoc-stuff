@@ -31,6 +31,13 @@ type TestProgram () =
              printfn "%A" res
              Assert.That(snd res |> Map.find "ORE", Is.EqualTo(165))
         )
+    
+    [<Test>]
+    member this.TestExtra1() =
+        boilerplate "./test_extra1.txt" (fun res ->
+             printfn "%A" res
+             Assert.That(snd res |> Map.find "ORE", Is.EqualTo(20))
+        )
         
     [<Test>]
     member this.Test3() =

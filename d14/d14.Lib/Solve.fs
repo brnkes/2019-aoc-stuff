@@ -28,6 +28,8 @@ let rec generateMap ls m =
 
 let traverseDependencies m =    
     let rec reifyDependency leftovers (requiredQuantity, currentChemical) =
+        printfn ">>>>>> Processing : %A, required : %d" currentChemical requiredQuantity
+
         // Deduct from leftovers & attempt to return early.
         let (requiredQuantityAfterLeftovers, leftoversAfterSupplyingRequiredQuantity) =
             match Map.tryFind currentChemical leftovers with
@@ -45,18 +47,13 @@ let traverseDependencies m =
             
             let reactionMultiplier = (requiredQuantityAfterLeftovers |> float) / (producedQuantity |> float) |> ceil |> int
             let chemicalsQtyProducedWithThisReaction = reactionMultiplier * producedQuantity
-            
-            let leftoversPostReaction = 
-                match (chemicalsQtyProducedWithThisReaction - requiredQuantityAfterLeftovers) with
-                    | x when x > 0 -> Map.add currentChemical x leftoversAfterSupplyingCurrentRequirement
-                    | _ -> leftoversAfterSupplyingCurrentRequirement
                         
-            let populateBacklogWithNewInputs acc (qNext,cNext) =
+            let generateNewBacklogWithInputs acc (qNext,cNext) =
                 Map.add cNext (reactionMultiplier * qNext) acc
-            let mutable backlogWithRecentlyDiscoveredInputs = Seq.fold populateBacklogWithNewInputs Map.empty inputs
+            let mutable backlogWithRecentlyDiscoveredInputs = Seq.fold generateNewBacklogWithInputs Map.empty inputs
             
             let calculateLeftoversAndMutateBacklog leftoverKey =
-                let leftoversExisting = Map.findOrDefault leftoverKey 0 leftoversPostReaction
+                let leftoversExisting = Map.findOrDefault leftoverKey 0 leftoversAfterSupplyingCurrentRequirement
                 
                 let mutable excessInBacklog = -leftoversExisting
                 let updateBacklog = (fun existingBacklog ->
@@ -68,13 +65,18 @@ let traverseDependencies m =
                 (leftoverKey, if excessInBacklog >= 0 then 0 else -excessInBacklog)
                 
             let leftoversNew =
-                Set.union (Map.keySet leftoversPostReaction) (Map.keySet backlogWithRecentlyDiscoveredInputs)
+                Set.union (Map.keySet leftoversAfterSupplyingCurrentRequirement) (Map.keySet backlogWithRecentlyDiscoveredInputs)
                 |> Set.map calculateLeftoversAndMutateBacklog
                 |> Set.filter (fun (_,quantity) -> quantity > 0) 
                 |> Set.toSeq
                 |> Map.ofSeq
             
-            (leftoversNew, backlogWithRecentlyDiscoveredInputs)
+            let leftoversPostReaction = 
+                match (Map.count backlogWithRecentlyDiscoveredInputs, (chemicalsQtyProducedWithThisReaction - requiredQuantityAfterLeftovers)) with
+                    | (b,x) when b > 0 && x > 0 -> Map.add currentChemical x leftoversNew
+                    | _ -> leftoversNew // All supplied from leftovers & reaction didn't occur OR chemicalsQty = requiredQty.
+            
+            (leftoversPostReaction, backlogWithRecentlyDiscoveredInputs)
         )
             
         match requiredQuantityAfterLeftovers with
@@ -85,13 +87,25 @@ let traverseDependencies m =
         let filterOutOres = Map.filter (fun chemical _-> chemical.Equals("ORE") |> not)
         let candidates = filterOutOres backlog 
         
+        printfn "==========="
+        printfn "Backlog Pre : %A" backlog
+        printfn "Leftovers Pre : %A" leftovers
+        
         let (leftoversNew, backlogNew) =
-            Map.fold (fun (leftoverC,backlogC) chemical q ->
+            Map.fold (fun (leftoverC, backlogC) chemical _ ->
+                let q = Map.find chemical backlogC 
                 let backlogWithoutNextChemical = Map.remove chemical backlogC            
                 let (leftoverNext, backlogNext) = reifyDependency leftoverC (q, chemical)
-                (leftoverNext, mergeMaps backlogNext backlogWithoutNextChemical (fun _ (v1,v2) -> v1+v2))
+                let backlogF =  mergeMaps backlogNext backlogWithoutNextChemical (fun _ (v1,v2) -> v1+v2)
+                
+                printfn "Backlog After %s : %A" chemical backlogF
+                printfn "Leftovers After %s : %A" chemical leftoverNext
+                printfn ""
+                
+                (leftoverNext, backlogF)
+
             ) (leftovers, backlog) candidates
-        
+       
         match backlogNew |> filterOutOres |> Map.count with
             | 0 -> (leftoversNew, backlogNew)
             | _ -> loopBacklog leftoversNew backlogNew

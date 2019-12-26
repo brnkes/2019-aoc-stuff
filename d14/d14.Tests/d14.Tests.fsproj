@@ -21,6 +21,7 @@
     <Content Include="test4.txt" />
     <Content Include="test5.txt" />
     <Content Include="test1.txt" />
+    <Content Include="test_extra1.txt" />
   </ItemGroup>
 
   <ItemGroup>
