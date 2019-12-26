@@ -34,10 +34,10 @@ let traverseDependencies m =
         
         // todo...
         let sumWithExistingBacklog acc (qNext,cNext) =
-            Map.insertWith (fun df existing -> df + existing) cNext (reactionMultiplier * qNext) acc
+            Map.add cNext (reactionMultiplier * qNext) acc
         let mutable backlogNew = Seq.fold sumWithExistingBacklog Map.empty inputs
         
-        let accountForLeftovers leftoverKey =
+        let calculateLeftoversAndMutateBacklog leftoverKey =
             let leftoverQuantity = Map.findOrDefault leftoverKey 0 leftovers
             let mutable diff = 0
             
@@ -51,7 +51,8 @@ let traverseDependencies m =
             
         let leftoversNew =
             Set.union (Map.keySet leftovers) (Map.keySet backlogNew)
-            |> Set.map accountForLeftovers
+            |> Set.map calculateLeftoversAndMutateBacklog
+            |> Set.filter (fun (_,quantity) -> quantity > 0) 
             |> Set.toSeq
             |> Map.ofSeq
         
@@ -79,15 +80,16 @@ let traverseDependencies m =
     let rec loopBacklog leftovers backlog =
         let candidates = Map.filter (fun chemical _-> chemical.Equals("ORE") |> not) backlog
         
-        Map.fold (fun (leftoverC,backlogC) chemical q ->
-            let backlogWithoutNextChemical = Map.remove chemical backlogC            
-            let (leftoverNext, backlogNext) = reifyDependency leftoverC (q, chemical)
-            (leftoverNext, mergeMaps backlogNext backlogWithoutNextChemical (fun _ (v1,v2) -> v1+v2))
-        ) (leftovers, backlog) candidates
+        let (leftoversNew, backlogNew) =
+            Map.fold (fun (leftoverC,backlogC) chemical q ->
+                let backlogWithoutNextChemical = Map.remove chemical backlogC            
+                let (leftoverNext, backlogNext) = reifyDependency leftoverC (q, chemical)
+                (leftoverNext, mergeMaps backlogNext backlogWithoutNextChemical (fun _ (v1,v2) -> v1+v2))
+            ) (leftovers, backlog) candidates
         
-//        match Map.count candidates with
-//            | 0 -> loopOverCandidates
-//            | _ -> backlog
+        match Map.count backlogNew with
+            | 0 -> loopBacklog leftoversNew backlogNew
+            | _ -> (leftoversNew, backlogNew)
             
     loopBacklog Map.empty (Map.ofList [(("FUEL" : Chemical), 1)])
 
