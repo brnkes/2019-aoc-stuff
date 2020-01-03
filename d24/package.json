@@ -1,0 +1,16 @@
+{
+  "name": "d24",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "copy-webpack-plugin": "^5.1.1",
+    "raw-loader": "^4.0.0",
+    "webpack": "^4.41.5",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.10.1"
+  },
+  "dependencies": {
+    "three": "^0.112.1"
+  }
+}
